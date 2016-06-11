@@ -16,6 +16,10 @@ echo "[+]temperature script downloaded and ready"
 timedatectl set-timezone Europe/Prague >/dev/null
 echo "[i]timezone set to Europe/Prague"
 
+#nano color syntax
+echo 'include "/usr/share/nano/*.nanorc"' > ~/.nanorc
+echo "[+]nano config updated"
+
 #update and upgrade via apt
 apt-get -qq update
 apt-get -q upgrade -y >/dev/null
