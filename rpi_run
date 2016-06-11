@@ -1,0 +1,111 @@
+#!/bin/bash
+#Raspberry Pi post installation script
+#usage: curl -Lo- http://raw.github.com/dakb/rpi/master/rpi_run | bash
+
+#variables
+packages="htop tcpdump iotop rsync ntpdate dnsutils"
+services="hciuart.service bluetooth.service avahi-daemon.service fake-hwclock.service"
+temp="http://raw.github.com/dakb/rpi/master/temp"
+
+#download temperature script
+wget -q $temp -P /usr/bin/
+chmod u+x /usr/bin/temp
+echo "[+]temperature script downloaded and ready"
+
+#set correct timezone
+timedatectl set-timezone Europe/Prague >/dev/null
+echo "[i]timezone set to Europe/Prague"
+
+#update and upgrade via apt
+apt-get -qq update
+apt-get -q upgrade -y >/dev/null
+echo "[i]apt update and upgrade completed"
+
+#install additional packages
+apt-get -q install $packages -y >/dev/null
+echo "[+]additional packages installed"
+
+#disable few services
+systemctl disable $services &>/dev/null
+echo "[-]some services disabled for autostart"
+
+#update rc.local
+sed -i '/exit/i \
+#set time via ntpdate right after reboot \
+ntpdate -u -b cz.pool.ntp.org >> /var/log/rc.local.log 2>&1 \
+' /etc/rc.local
+echo "[+]rc.local updated"
+
+#update ntpdate config
+sed -i '/^NTPOPTIONS/s/""/"u"/' \
+/etc/default/ntpdate
+echo "[+]ntpdate config updated"
+
+#unload wifi/bt drivers
+cat >> /etc/modprobe.d/raspi-blacklist.conf <<EOF
+#wifi kernel modules
+blacklist brcmfmac
+blacklist brcmutil
+
+#bt kernel modules
+blacklist btbcm
+blacklist hci_uart
+EOF
+echo "[-]wifi/bt drivers unloaded"
+
+#ramdisk check if exists
+if [ -d /ramdisk ]; then
+        echo "[!]/ramdisk exists, please check"
+        exit 1  
+else
+        echo "[+]creating ramdisk"
+fi
+
+#create and mount ramdisk
+mkdir /ramdisk
+cat >> /etc/fstab <<EOF
+
+#ramdisk
+tmpfs   /ramdisk  tmpfs nodev,nosuid,size=128M  0 0
+EOF
+mount -a -t tmpfs
+echo "[+]ramdisk created and mounted as /ramdisk"
+
+#delete and link apt cache
+rm -rf /var/cache/apt/archives
+ln -s /ramdisk /var/cache/apt/archives
+echo "[i]apt archive linked to ramdisk"
+
+#persistently disable swap
+swapoff --all
+apt-get -q remove dphys-swapfile -y >/dev/null
+echo "[-]swap disabled"
+
+#.bashrc moficiations for root
+cat >> /root/.bashrc <<EOF
+
+#unlimited history length
+HISTSIZE=
+HISTFILESIZE=
+
+#simple list alias
+alias ll='ls -la'
+EOF
+
+cat >> /home/pi/.bashrc <<EOF
+
+#faster switch
+alias s='sudo su -'
+EOF
+source /root/.bashrc
+source /home/pi/.bashrc
+echo "[i]bashrc modified"
+
+#cleaning via apt
+apt-get -q autoclean >/dev/null
+apt-get -q autoremove -y >/dev/null
+echo "[i] apt clean, unused packages removed"
+
+#done, restart
+shutdown -r 1 "restart in 1 min"
+echo "[i]done, restart in 1 min, type shutdown -c to cancel"
