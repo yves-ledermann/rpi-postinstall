@@ -93,7 +93,7 @@ HISTSIZE=
 HISTFILESIZE=
 
 #simple list alias
-alias ll='ls -la'
+alias ll='ls -la --color=auto'
 EOF
 
 cat >> /home/pi/.bashrc <<EOF
