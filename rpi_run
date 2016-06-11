@@ -21,8 +21,8 @@ echo 'include "/usr/share/nano/*.nanorc"' > ~/.nanorc
 echo "[+]nano config updated"
 
 #update and upgrade via apt
-apt-get -qq update
-apt-get -q upgrade -y >/dev/null
+apt-get -qq update &>/dev/null
+apt-get -qq upgrade -y >/dev/null
 echo "[i]apt update and upgrade completed"
 
 #install additional packages
@@ -60,7 +60,7 @@ echo "[-]wifi/bt drivers unloaded"
 #ramdisk check if exists
 if [ -d /ramdisk ]; then
         echo "[!]/ramdisk exists, please check"
-        exit 1  
+        exit 1 
 else
         echo "[+]creating ramdisk"
 fi
@@ -108,7 +108,7 @@ echo "[i]bashrc modified"
 #cleaning via apt
 apt-get -q autoclean >/dev/null
 apt-get -q autoremove -y >/dev/null
-echo "[i] apt clean, unused packages removed"
+echo "[i]apt clean, unused packages removed"
 
 #done, restart
 shutdown -r 1 "restart in 1 min"
