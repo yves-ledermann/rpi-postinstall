@@ -1,24 +1,50 @@
 #!/bin/bash
 #Raspberry Pi post installation script
-#usage: curl -Lo- http://raw.github.com/dakb/rpi/master/rpi_run | bash
+#usage: curl -Lo- https://raw.githubusercontent.com/yves-ledermann/rpi-postinstall/master/rpi_run | bash
+
+# Original Version from http://github.com/dakb/rpi/
 
 #variables
-packages="htop tcpdump iotop rsync ntpdate dnsutils"
+packages="htop dnsutils nano sudo rpi-update raspi-config usbutils dosfstools"
 services="hciuart.service bluetooth.service avahi-daemon.service fake-hwclock.service"
-temp="http://raw.github.com/dakb/rpi/master/temp"
+timeserver="ntp.metas.ch"
 
-#download temperature script
-wget -q $temp -P /usr/bin/
+#temperature script
+cat >> /usr/bin/temp <<EOF
+#!/bin/bash
+
+#
+#CPU/GPU temperature for RPi
+#
+
+cpuTemp0=$(cat /sys/class/thermal/thermal_zone0/temp)
+cpuTemp1=$(($cpuTemp0/1000))
+cpuTemp2=$(($cpuTemp0/100))
+cpuTempM=$(($cpuTemp2 % $cpuTemp1))
+
+echo CPU temp"="$cpuTemp1"."$cpuTempM"'C"
+echo GPU $(/opt/vc/bin/vcgencmd measure_temp)
+
+EOF
+
 chmod u+x /usr/bin/temp
 echo "[+]temperature script downloaded and ready"
 
 #set correct timezone
-timedatectl set-timezone Europe/Prague >/dev/null
-echo "[i]timezone set to Europe/Prague"
+timedatectl set-timezone Europe/Zurich >/dev/null
+echo "[i]timezone set to Europe/Zurich"
 
 #nano color syntax
 echo 'include "/usr/share/nano/nanorc.nanorc"' > ~/.nanorc
 echo "[+]nano config updated"
+
+# Expand Filesystem
+raspi-config --expand-rootfs >/dev/null
+echo "[i]expand rootfs in progress"
+partprobe /dev/mmcblk0 >/dev/null
+echo "[i]expand rootfs ready to resize fs"
+resize2fs /dev/mmcblk0p2 >/dev/null
+echo "[i]expanding rootfs finished"
 
 #update and upgrade via apt
 apt-get -qq update &>/dev/null
@@ -33,10 +59,13 @@ echo "[+]additional packages installed"
 systemctl disable $services &>/dev/null
 echo "[-]some services disabled for autostart"
 
+# Update the firmware of your Raspberry Pi and delete all modules except the latest installed:
+PRUNE_MODULES=1 rpi-update >/dev/null
+
 #update rc.local
 sed -i '/exit/i \
 #set time via ntpdate right after reboot \
-ntpdate -u -b cz.pool.ntp.org >> /var/log/rc.local.log 2>&1 \
+ntpdate -u -b $timeserver >> /var/log/rc.local.log 2>&1 \
 ' /etc/rc.local
 echo "[+]rc.local updated"
 
@@ -44,18 +73,6 @@ echo "[+]rc.local updated"
 sed -i '/^NTPOPTIONS/s/""/"u"/' \
 /etc/default/ntpdate
 echo "[+]ntpdate config updated"
-
-#unload wifi/bt drivers
-cat >> /etc/modprobe.d/raspi-blacklist.conf <<EOF
-#wifi kernel modules
-blacklist brcmfmac
-blacklist brcmutil
-
-#bt kernel modules
-blacklist btbcm
-blacklist hci_uart
-EOF
-echo "[-]wifi/bt drivers unloaded"
 
 #ramdisk check if exists
 if [ -d /ramdisk ]; then
@@ -70,7 +87,7 @@ mkdir /ramdisk
 cat >> /etc/fstab <<EOF
 
 #ramdisk
-tmpfs   /ramdisk  tmpfs nodev,nosuid,size=128M  0 0
+tmpfs   /ramdisk  tmpfs nodev,nosuid,size=32M  0 0
 EOF
 mount -a -t tmpfs
 echo "[+]ramdisk created and mounted as /ramdisk"
