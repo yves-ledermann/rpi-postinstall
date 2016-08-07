@@ -7,27 +7,12 @@
 #variables
 packages="htop dnsutils nano sudo rpi-update raspi-config usbutils dosfstools"
 services="hciuart.service bluetooth.service avahi-daemon.service fake-hwclock.service"
+temp="https://raw.githubusercontent.com/yves-ledermann/rpi-postinstall/master/temp"
 timeserver="ntp.metas.ch"
 aptproxy="http://10.11.22.60:3142"
 
 #temperature script
-cat >> /usr/bin/temp <<EOF
-#!/bin/bash
-
-#
-#CPU/GPU temperature for RPi
-#
-
-cpuTemp0=$(cat /sys/class/thermal/thermal_zone0/temp)
-cpuTemp1=$(($cpuTemp0/1000))
-cpuTemp2=$(($cpuTemp0/100))
-cpuTempM=$(($cpuTemp2 % $cpuTemp1))
-
-echo CPU temp"="$cpuTemp1"."$cpuTempM"'C"
-echo GPU $(/opt/vc/bin/vcgencmd measure_temp)
-
-EOF
-
+wget -q $temp -P /usr/bin/
 chmod u+x /usr/bin/temp
 echo "[+]temperature script downloaded and ready"
 
@@ -41,10 +26,10 @@ echo "[+]nano config updated"
 
 # set apt proxy
 echo "Acquire::http { Proxy "$aptproxy"; };" > /etc/apt/apt.conf.d/02proxy
-
-
+echo "[+]apt proxy config added"
 
 #update and upgrade via apt
+echo "[i] APT Update and Upgrade in progress (can take some Time)"
 apt-get -qq update &>/dev/null
 apt-get -qq upgrade -y >/dev/null
 echo "[i]apt update and upgrade completed"
@@ -58,15 +43,15 @@ systemctl disable $services &>/dev/null
 echo "[-]some services disabled for autostart"
 
 # Expand Filesystem
-raspi-config --expand-rootfs >/dev/null
+raspi-config --expand-rootfs &>/dev/null
 echo "[i]expand rootfs in progress"
-partprobe /dev/mmcblk0 >/dev/null
+partprobe /dev/mmcblk0 &>/dev/null
 echo "[i]expand rootfs ready to resize fs"
-resize2fs /dev/mmcblk0p2 >/dev/null
+resize2fs /dev/mmcblk0p2 &>/dev/null
 echo "[i]expanding rootfs finished"
 
 # Update the firmware of your Raspberry Pi and delete all modules except the latest installed:
-PRUNE_MODULES=1 rpi-update >/dev/null
+PRUNE_MODULES=1 rpi-update &>/dev/null
 
 #update rc.local
 sed -i '/exit/i \
