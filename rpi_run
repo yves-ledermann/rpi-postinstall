@@ -9,7 +9,8 @@ packages="htop dnsutils nano sudo rpi-update raspi-config usbutils dosfstools"
 services="hciuart.service bluetooth.service avahi-daemon.service fake-hwclock.service"
 temp="https://raw.githubusercontent.com/yves-ledermann/rpi-postinstall/master/temp"
 timeserver="ntp.metas.ch"
-aptproxy="http://10.11.22.60:3142"
+APT_PROXY_IP="10.11.22.60"
+APT_PROXY_PORT="3142"
 
 #temperature script
 wget -q $temp -P /usr/bin/
@@ -25,8 +26,13 @@ echo 'include "/usr/share/nano/nanorc.nanorc"' > ~/.nanorc
 echo "[+]nano config updated"
 
 # set apt proxy
-echo "Acquire::http { Proxy "$aptproxy"; };" > /etc/apt/apt.conf.d/02proxy
-echo "[+]apt proxy config added"
+cat >> /etc/apt/apt.conf.d/02proxy <<EOL
+    Acquire::http::Proxy "http://$APT_PROXY_IP:$APT_PROXY_PORT";
+    Acquire::http::Proxy::ppa.launchpad.net DIRECT;
+EOL
+
+cat /etc/apt/apt.conf.d/02proxy
+echo "Using host's apt proxy"
 
 #update and upgrade via apt
 echo "[i] APT Update and Upgrade in progress (can take some Time)"
