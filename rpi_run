@@ -8,6 +8,7 @@
 packages="htop dnsutils nano sudo rpi-update raspi-config usbutils dosfstools"
 services="hciuart.service bluetooth.service avahi-daemon.service fake-hwclock.service"
 timeserver="ntp.metas.ch"
+aptproxy="http://10.11.22.60:3142"
 
 #temperature script
 cat >> /usr/bin/temp <<EOF
@@ -38,13 +39,10 @@ echo "[i]timezone set to Europe/Zurich"
 echo 'include "/usr/share/nano/nanorc.nanorc"' > ~/.nanorc
 echo "[+]nano config updated"
 
-# Expand Filesystem
-raspi-config --expand-rootfs >/dev/null
-echo "[i]expand rootfs in progress"
-partprobe /dev/mmcblk0 >/dev/null
-echo "[i]expand rootfs ready to resize fs"
-resize2fs /dev/mmcblk0p2 >/dev/null
-echo "[i]expanding rootfs finished"
+# set apt proxy
+echo "Acquire::http { Proxy "$aptproxy"; };" > /etc/apt/apt.conf.d/02proxy
+
+
 
 #update and upgrade via apt
 apt-get -qq update &>/dev/null
@@ -58,6 +56,14 @@ echo "[+]additional packages installed"
 #disable few services
 systemctl disable $services &>/dev/null
 echo "[-]some services disabled for autostart"
+
+# Expand Filesystem
+raspi-config --expand-rootfs >/dev/null
+echo "[i]expand rootfs in progress"
+partprobe /dev/mmcblk0 >/dev/null
+echo "[i]expand rootfs ready to resize fs"
+resize2fs /dev/mmcblk0p2 >/dev/null
+echo "[i]expanding rootfs finished"
 
 # Update the firmware of your Raspberry Pi and delete all modules except the latest installed:
 PRUNE_MODULES=1 rpi-update >/dev/null
